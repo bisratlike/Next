@@ -1,0 +1,268 @@
+--- File: layout.tsx ---
+import { MantineProvider } from '@mantine/core';
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className="antialiased">
+        <MantineProvider  theme={{
+    primaryColor: 'blue', // Use a valid color name or hex code
+  }}>
+          {children}
+        </MantineProvider>
+      </body>
+    </html>
+  );
+}
+
+--- File: page.tsx ---
+"use client";
+
+import { useState, useEffect } from "react";
+import { createUser, getUsers, updateUser, deleteUser } from "@/lib/actions";
+import AddModal from "@/components/addmodal";
+import EditModal from "@/components/editmodal";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  createdAt: Date;
+};
+
+export default function Home() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    getUsers().then(setUsers);
+  }, []);
+
+  const handleSaveUser = (name: string, email: string) => {
+    createUser(name, email).then(newUser => {
+      setUsers([...users, newUser]);
+      setIsAddModalOpen(false);
+    }).catch(error => {
+      console.error("Error saving user:", error);
+    });
+  };
+
+  const handleUpdateUser = (name: string, email: string) => {
+    if (selectedUser) {
+      updateUser(selectedUser.id, name, email).then(updatedUser => {
+        setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+      }).catch(error => {
+        console.error("Error updating user:", error);
+      });
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={() => setIsAddModalOpen(true)}>Add User</button>
+      <AddModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSave={handleSaveUser} 
+      />
+      <EditModal 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        onSave={handleUpdateUser} 
+        initialData={selectedUser || { name: '', email: '' }} 
+      />
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>
+            {user.name} ({user.email})
+            <button onClick={() => {
+              setSelectedUser(user);
+              setIsEditModalOpen(true);
+            }}>Update</button>
+            <button onClick={() => deleteUser(user.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+--- File: editmodal.tsx ---
+import React, { useState, useEffect } from 'react';
+import { Modal, Button, TextInput } from '@mantine/core';
+
+interface EditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string, email: string) => void;
+  initialData: { name: string; email: string };
+}
+
+const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
+  const [name, setName] = useState(initialData.name);
+  const [email, setEmail] = useState(initialData.email);
+
+  useEffect(() => {
+    setName(initialData.name);
+    setEmail(initialData.email);
+  }, [initialData]);
+
+  const handleSave = () => {
+    if (!name || !email) {
+      alert("Both fields are required.");
+      return;
+    }
+    onSave(name, email);
+  };
+
+  return (
+    <Modal opened={isOpen} onClose={onClose} title="Edit User">
+      <div className="space-y-4">
+        <TextInput
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder="Name"
+        />
+        <TextInput
+          label="Email"
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          placeholder="Email"
+        />
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+export default EditModal;
+
+--- File: addmodal.tsx ---
+import React, { useState } from 'react';
+import { Modal, Button, TextInput } from '@mantine/core';
+
+type AddModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string, email: string) => void;
+};
+
+export default function AddModal({ isOpen, onClose, onSave }: AddModalProps) {
+  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+
+  const handleSave = () => {
+    if (!name || !email) {
+      alert("Both fields are required.");
+      return;
+    }
+    onSave(name, email);
+  };
+
+  return (
+    <Modal opened={isOpen} onClose={onClose} title="Add User">
+      <div className="space-y-4">
+        <TextInput
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder="Name"
+        />
+        <TextInput
+          label="Email"
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          placeholder="Email"
+        />
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+--- File: schema.ts ---
+import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").unique().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  });
+
+--- File: actions.ts ---
+"use server";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
+
+export async function createUser(name: string, email: string) {
+    try {
+          const newEmployee = await db.insert(users).values({ name,email}).returning();
+    return newEmployee;
+    } catch (error) {
+        console.error("Error creating user:", error);
+        throw new Error("Could not create user");
+    }
+}
+// export async function createUser(name: string, email: string) {
+//     const newEmployee = await db.insert(users)
+//     .values({ name,email})
+//     .returning();
+//     return newEmployee}
+
+
+
+
+
+
+
+
+export async function getUsers() {
+    try {
+        return await db.select().from(users);
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        throw new Error("Could not fetch users");
+    }
+}
+
+export async function updateUser(id: number, name: string, email: string) {
+    try {
+        await db.update(users).set({ name, email }).where(users.id.equals(id));
+    } catch (error) {
+        console.error("Error updating user:", error);
+        throw new Error("Could not update user");
+    }
+}
+
+export async function deleteUser(id: number) {
+    try {
+        await db.delete(users).where(users.id.equals(id));
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        throw new Error("Could not delete user");
+    }
+}
+
+--- File: db.ts ---
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "../db/schema";
+const client = postgres(process.env.DATABASE_URL!);
+export const db = drizzle(client, { schema });
+
