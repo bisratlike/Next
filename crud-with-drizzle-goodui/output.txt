@@ -40,141 +40,43 @@ export default function RootLayout({
 }
 
 --- File: page.tsx ---
-"use client";
-
-import { useState, useEffect } from "react";
-import { createUser, getUsers, updateUser, deleteUser } from "@/lib/actions";
-import AddModal from "@/components/addmodal";
-import EditModal from "@/components/editmodal";
-import { Table, Paper, Button, Group, Text, Badge } from "@mantine/core";
-import { IconUserPlus, IconEdit, IconTrash } from "@tabler/icons-react";
-import  Header  from "@/components/header";
-type User = {
-  id: number;
-  name: string;
-  email: string;
-  createdAt: Date;
-};
+import EmployeePage from './employees/page';
+import Header from './components/header';
 
 export default function Home() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  return(
+    <div>
+      <Header />
+      <EmployeePage />
+    </div>
+  )
+}
 
-  useEffect(() => {
-    getUsers().then(setUsers);
-  }, []);
+--- File: searchFilter.tsx ---
+// components/SearchFilter.tsx
+"use client";
 
-  const handleSaveUser = (name: string, email: string) => {
-    createUser(name, email).then(newUser => {
-      setUsers([...users, { ...newUser, createdAt: new Date() }]);
-      setIsAddModalOpen(false);
-    }).catch(error => {
-      console.error("Error saving user:", error);
-    });
-  };
+import { TextInput } from "@mantine/core";
+import { IconSearch } from "@tabler/icons-react";
 
-  const handleUpdateUser = (name: string, email: string) => {
-    if (selectedUser) {
-      updateUser(selectedUser.id, name, email).then(updatedUser => {
-        setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-        setIsEditModalOpen(false);
-        setSelectedUser(null);
-      }).catch(error => {
-        console.error("Error updating user:", error);
-      });
-    }
-  };
-
-  const rows = users.map((user) => (
-    <Table.Tr key={user.id} className="hover:bg-gray-50 transition-colors">
-      <Table.Td className="py-3 px-6">{user.name}</Table.Td>
-      <Table.Td className="py-3 px-6">{user.email}</Table.Td>
-      <Table.Td className="py-3 px-6">
-      {new Date(user.createdAt).toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric'
-})}
-      </Table.Td>
-      <Table.Td className="py-3 px-6">
-        <Group gap="sm">
-          <Button
-            leftSection={<IconEdit size={16} />}
-            variant="light"
-            color="pink"
-            onClick={() => {
-              setSelectedUser(user);
-              setIsEditModalOpen(true);
-            }}
-          >
-            Edit
-          </Button>
-          <Button
-            leftSection={<IconTrash size={16} />}
-            variant="outline"
-            color="red"
-            onClick={() => {
-              deleteUser(user.id)
-                .then(() => setUsers(users.filter(u => u.id !== user.id)))
-                .catch(console.error)
-            }}
-          >
-            Delete
-          </Button>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  ));
-
+export default function SearchFilter({
+  searchQuery,
+  setSearchQuery,
+}: {
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+}) {
   return (
-    <div className="min-h-screen flex flex-col">
-  <Header onAddClick={() => setIsAddModalOpen(true)} />
-  <main className="flex-1 p-8 max-w-6xl mx-auto w-full">
-  <Paper withBorder shadow="sm" className="rounded-lg overflow-hidden">
-  <Table striped highlightOnHover>
-    <Table.Thead className="bg-pink-200">
-      <Table.Tr>
-        <Table.Th className="py-4 px-6">
-          <Text span className="text-pink-800">
-            Name
-          </Text>
-        </Table.Th>
-        <Table.Th className="py-4 px-6">
-          <Text span className="text-pink-800">
-            Email
-          </Text>
-        </Table.Th>
-        <Table.Th className="py-4 px-6">
-          <Text span className="text-pink-800">
-            Joined Date
-          </Text>
-        </Table.Th>
-        <Table.Th className="py-4 px-6">
-          <Text span className="text-pink-800">
-            Actions
-          </Text>
-        </Table.Th>
-      </Table.Tr>
-    </Table.Thead>
-    <Table.Tbody>{rows}</Table.Tbody>
-  </Table>
-</Paper> </main>
-
-      <AddModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSave={handleSaveUser} 
+    <div className="max-w-6xl mx-auto px-8 mb-6">
+      <TextInput
+        placeholder="Search users by name or email..."
+        leftSection={<IconSearch size={18} />}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+        className="w-full"
+        size="md"
+        radius="lg"
       />
-      <EditModal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
-        onSave={handleUpdateUser} 
-        initialData={selectedUser || { name: '', email: '' }} 
-      />
-
-
     </div>
   );
 }
@@ -215,106 +117,6 @@ export default function Header({ onAddClick }: { onAddClick: () => void }) {
   );
 }
 
---- File: editmodal.tsx ---
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, TextInput } from '@mantine/core';
-
-interface EditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (name: string, email: string) => void;
-  initialData: { name: string; email: string };
-}
-
-const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
-  const [name, setName] = useState(initialData.name);
-  const [email, setEmail] = useState(initialData.email);
-
-  useEffect(() => {
-    setName(initialData.name);
-    setEmail(initialData.email);
-  }, [initialData]);
-
-  const handleSave = () => {
-    if (!name || !email) {
-      alert("Both fields are required.");
-      return;
-    }
-    onSave(name, email);
-  };
-
-  return (
-    <Modal opened={isOpen} onClose={onClose} title="Edit User">
-      <div className="space-y-4">
-        <TextInput
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Name"
-        />
-        <TextInput
-          label="Email"
-          value={email}
-          onChange={(e) => setEmail(e.currentTarget.value)}
-          placeholder="Email"
-        />
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-export default EditModal;
-
---- File: addmodal.tsx ---
-import React, { useState } from 'react';
-import { Modal, Button, TextInput } from '@mantine/core';
-
-type AddModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (name: string, email: string) => void;
-};
-
-export default function AddModal({ isOpen, onClose, onSave }: AddModalProps) {
-  const [name, setName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-
-  const handleSave = () => {
-    if (!name || !email) {
-      alert("Both fields are required.");
-      return;
-    }
-    onSave(name, email);
-  };
-
-  return (
-    <Modal opened={isOpen} onClose={onClose} title="Add User">
-      <div className="space-y-4">
-        <TextInput
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Name"
-        />
-        <TextInput
-          label="Email"
-          value={email}
-          onChange={(e) => setEmail(e.currentTarget.value)}
-          placeholder="Email"
-        />
-        <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 --- File: schema.ts ---
 import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
@@ -329,7 +131,9 @@ export const users = pgTable("users", {
 "use server";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq} from "drizzle-orm";
+import { asc, gt } from 'drizzle-orm';
+
 
 export async function createUser(name: string, email: string) {
     try {
@@ -351,17 +155,25 @@ export async function createUser(name: string, email: string) {
 
 
 
+async function getUsers(cursor?: number, pageSize = 10) {
+  try {
+    const userList = await db
+      .select()
+      .from(users)
+      .where(cursor ? gt(users.id, cursor) : undefined)
+      .limit(pageSize)
+      .orderBy(asc(users.id));
 
+    const total = await db
+      .select()
+      .from(users)
+      .count();
 
-
-
-export async function getUsers() {
-    try {
-        return await db.select().from(users);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        throw new Error("Could not fetch users");
-    }
+    return { users: userList, total: total[0].count };
+  } catch (error) {
+    console.error("Error getting users:", error);
+    throw new Error("Could not get users");
+  }
 }
 
 export async function updateUser(id: number, name: string, email: string) {

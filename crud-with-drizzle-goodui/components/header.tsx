@@ -1,34 +1,39 @@
 "use client";
 
-import { Badge, Button, Text, Group } from "@mantine/core";
+import { Badge, Button, Text, Group, Container } from "@mantine/core";
 import { IconUserPlus } from "@tabler/icons-react";
 
-export default function Header({ onAddClick }: { onAddClick: () => void }) {
+export default function Header({ onAddClick = () => {} }: { onAddClick?: () => void }) {
   return (
-    <div className="w-full bg-white shadow-sm">
-      <div className="max-w-6xl mx-auto p-8">
+    <header className="w-full bg-white shadow-sm border-b border-gray-100">
+      <Container size="xl" py="md">
         <Group justify="space-between">
-          <Group gap="sm">
+          <Group gap="xs">
             <Badge
               size="xl"
               radius="sm"
-              classNames={{ root: "bg-pink-200", label: "text-pink-800" }}
+              variant="filled"
+              color="pink"
+              className="shadow-md"
             >
               Pinky
             </Badge>
-            <Text component="h1" className="text-2xl font-bold text-pink-800">
+            <Text component="h1" className="text-2xl font-bold text-gray-800">
               User Management
             </Text>
           </Group>
           <Button
             leftSection={<IconUserPlus size={20} />}
             color="pink"
+            radius="md"
+            size="md"
             onClick={onAddClick}
+            className="shadow-sm hover:shadow-md transition-shadow"
           >
             Add New User
           </Button>
         </Group>
-      </div>
-    </div>
+      </Container>
+    </header>
   );
 }

@@ -1,7 +1,8 @@
 "use server";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+// import { eq} from "drizzle-orm";
+import { eq, asc, gt, fn } from "drizzle-orm";
 
 export async function createUser(name: string, email: string) {
     try {
@@ -23,17 +24,27 @@ export async function createUser(name: string, email: string) {
 
 
 
+export async function getUsers(cursor?: number, pageSize = 10) {
+  try {
+    const userList = await db
+      .select()
+      .from(users)
+      .where(cursor ? gt(users.id, cursor) : undefined)
+      .limit(pageSize)
+      .orderBy(asc(users.id));
 
+      const total = await db
+      .select(db.fn.count(users.id).as('count'))
+      .from(users);
+    
+  
+      return { users: userList, total: total[0].count };
 
-
-
-export async function getUsers() {
-    try {
-        return await db.select().from(users);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        throw new Error("Could not fetch users");
-    }
+    // return { users: userList, total: total[0].count };
+  } catch (error) {
+    console.error("Error getting users:", error);
+    throw new Error("Could not get users");
+  }
 }
 
 export async function updateUser(id: number, name: string, email: string) {

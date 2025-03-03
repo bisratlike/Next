@@ -1,4 +1,3 @@
-// components/SearchFilter.tsx
 "use client";
 
 import { TextInput } from "@mantine/core";
@@ -12,16 +11,17 @@ export default function SearchFilter({
   setSearchQuery: (value: string) => void;
 }) {
   return (
-    <div className="max-w-6xl mx-auto px-8 mb-6">
-      <TextInput
-        placeholder="Search users by name or email..."
-        leftSection={<IconSearch size={18} />}
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.currentTarget.value)}
-        className="w-full"
-        size="md"
-        radius="lg"
-      />
-    </div>
+    <TextInput
+      placeholder="Search users by name or email..."
+      leftSection={<IconSearch size={18} className="text-gray-500" />}
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.currentTarget.value)}
+      size="md"
+      radius="md"
+      className="w-full max-w-2xl"
+      classNames={{
+        input: "border-gray-200 focus:border-pink-300",
+      }}
+    />
   );
 }
