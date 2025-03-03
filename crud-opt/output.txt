@@ -1,0 +1,208 @@
+--- File: layout.tsx ---
+import { MantineProvider, ColorSchemeScript } from '@mantine/core';
+import '@mantine/core/styles.css';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Pinky Users',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ColorSchemeScript defaultColorScheme="light" />
+      </head>
+      <body className="antialiased">
+        <MantineProvider
+          defaultColorScheme="light"
+          theme={{
+            primaryColor: 'pink',
+            components: {
+              Badge: {
+                styles: {
+                  root: { backgroundColor: '#fbcfe8' },
+                  label: { color: '#9d174d' }
+                }
+              }
+            }
+          }}
+        >
+          {children}
+        </MantineProvider>
+      </body>
+    </html>
+  );
+}
+
+--- File: page.tsx ---
+import EmployeePage from './employees/page';
+import Header from './components/header';
+
+export default function Home() {
+  return(
+    <div>
+      <Header />
+      <EmployeePage />
+    </div>
+  )
+}
+
+--- File: searchFilter.tsx ---
+// components/SearchFilter.tsx
+"use client";
+
+import { TextInput } from "@mantine/core";
+import { IconSearch } from "@tabler/icons-react";
+
+export default function SearchFilter({
+  searchQuery,
+  setSearchQuery,
+}: {
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+}) {
+  return (
+    <div className="max-w-6xl mx-auto px-8 mb-6">
+      <TextInput
+        placeholder="Search users by name or email..."
+        leftSection={<IconSearch size={18} />}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+        className="w-full"
+        size="md"
+        radius="lg"
+      />
+    </div>
+  );
+}
+
+--- File: header.tsx ---
+"use client";
+
+import { Badge, Button, Text, Group } from "@mantine/core";
+import { IconUserPlus } from "@tabler/icons-react";
+
+export default function Header({ onAddClick }: { onAddClick: () => void }) {
+  return (
+    <div className="w-full bg-white shadow-sm">
+      <div className="max-w-6xl mx-auto p-8">
+        <Group justify="space-between">
+          <Group gap="sm">
+            <Badge
+              size="xl"
+              radius="sm"
+              classNames={{ root: "bg-pink-200", label: "text-pink-800" }}
+            >
+              Pinky
+            </Badge>
+            <Text component="h1" className="text-2xl font-bold text-pink-800">
+              User Management
+            </Text>
+          </Group>
+          <Button
+            leftSection={<IconUserPlus size={20} />}
+            color="pink"
+            onClick={onAddClick}
+          >
+            Add New User
+          </Button>
+        </Group>
+      </div>
+    </div>
+  );
+}
+
+--- File: schema.ts ---
+import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").unique().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  });
+
+--- File: actions.ts ---
+"use server";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
+import { eq} from "drizzle-orm";
+import { asc, gt } from 'drizzle-orm';
+
+
+export async function createUser(name: string, email: string) {
+    try {
+      const [newUser] = await db.insert(users)
+        .values({ name, email })
+        .returning(); 
+      return newUser;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw new Error("Could not create user");
+    }
+  }
+// export async function createUser(name: string, email: string) {
+//     const newEmployee = await db.insert(users)
+//     .values({ name,email})
+//     .returning();
+//     return newEmployee}
+
+
+
+
+async function getUsers(cursor?: number, pageSize = 10) {
+  try {
+    const userList = await db
+      .select()
+      .from(users)
+      .where(cursor ? gt(users.id, cursor) : undefined)
+      .limit(pageSize)
+      .orderBy(asc(users.id));
+
+    const total = await db
+      .select()
+      .from(users)
+      .count();
+
+    return { users: userList, total: total[0].count };
+  } catch (error) {
+    console.error("Error getting users:", error);
+    throw new Error("Could not get users");
+  }
+}
+
+export async function updateUser(id: number, name: string, email: string) {
+    try {
+        const [updatedUser]=await db.update(users).set({ name, email }).where(eq(users.id, id)).returning();
+
+        return updatedUser;
+    } catch (error) {
+        console.error("Error updating user:", error);
+        throw new Error("Could not update user");
+    }
+}
+
+export async function deleteUser(id: number) {
+    try {
+      const [deletedUser] = await db.delete(users)
+        .where(eq(users.id, id))
+        .returning({ deletedId: users.id });
+      return deletedUser.deletedId;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw new Error("Could not delete user");
+    }
+  }
+
+--- File: db.ts ---
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "../db/schema";
+const client = postgres(process.env.DATABASE_URL!);
+export const db = drizzle(client, { schema });
+
