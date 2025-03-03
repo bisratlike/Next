@@ -1,6 +1,11 @@
-// ... existing imports ...
-import { Notifications } from '@mantine/notifications';
-import { MantineProvider, ColorSchemeScript,  } from '@mantine/core';
+import { MantineProvider, ColorSchemeScript } from '@mantine/core';
+import '@mantine/core/styles.css';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Pinky Users',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -22,16 +27,10 @@ export default function RootLayout({
                   root: { backgroundColor: '#fbcfe8' },
                   label: { color: '#9d174d' }
                 }
-              },
-              Card: {
-                styles: {
-                  root: { transition: 'transform 0.2s' },
-                }
               }
             }
           }}
         >
-          <Notifications position="top-right" />
           {children}
         </MantineProvider>
       </body>
